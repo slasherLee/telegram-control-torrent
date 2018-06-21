@@ -1,4 +1,5 @@
-#!/usr/bin/python3
+#-*-coding:utf-8-*-
+#!/usr/bin/python
 import sys
 import os
 import feedparser
@@ -6,8 +7,8 @@ import telepot
 import json
 import random
 import string
+import urllib
 from os.path import expanduser
-from urllib import parse
 from apscheduler.schedulers.background import BackgroundScheduler
 from telepot.delegate import per_chat_id, create_open, pave_event_space
 
@@ -29,9 +30,9 @@ class DelugeAgent:
         return os.popen('deluge-console info').read()
 
     def printElement(self, e):
-        outString = 'NAME: ' + e['title'] + \
-            '\n' + 'STATUS: ' + e['status'] + '\n'
-        outString += 'PROGRESS: ' + e['progress'] + '\n'
+        outString = '이름: ' + e['title'] + \
+            '\n' + '상태: ' + e['status'] + '\n'
+        outString += '진행: ' + e['progress'] + '\n'
         outString += '\n'
         return outString
 
@@ -72,7 +73,7 @@ class DelugeAgent:
         currentList = self.getCurrentList()
         outList = self.parseList(currentList)
         if not bool(outList):
-            self.sender.sendMessage('The torrent List is empty')
+            self.sender.sendMessage('토렌트 목록이 비어 있습니다.')
             scheduler.remove_all_jobs()
             self.weightList.clear()
             return
@@ -132,9 +133,9 @@ class TransmissionAgent:
             return l
 
     def printElement(self, e):
-        outString = 'NAME: ' + e['title'] + \
-            '\n' + 'STATUS: ' + e['status'] + '\n'
-        outString += 'PROGRESS: ' + e['progress'] + '\n'
+        outString = '이름: ' + e['title'] + \
+            '\n' + '상태: ' + e['status'] + '\n'
+        outString += '진행: ' + e['progress'] + '\n'
         outString += '\n'
         return outString
 
@@ -184,7 +185,7 @@ class TransmissionAgent:
         currentList = self.getCurrentList()
         outList = self.parseList(currentList)
         if not bool(outList):
-            self.sender.sendMessage('The torrent List is empty')
+            self.sender.sendMessage('토렌트 목록이 비어 있습니다.')
             scheduler.remove_all_jobs()
             self.weightList.clear()
             return
@@ -208,13 +209,13 @@ class TransmissionAgent:
 class Torrenter(telepot.helper.ChatHandler):
     YES = '<OK>'
     NO = '<NO>'
-    MENU0 = 'HOME'
-    MENU1 = 'SEARCH TORRENT'
-    MENU1_1 = 'INPUT A WORD'
-    MENU1_2 = 'CHOOSE AN ITEM'
-    MENU2 = 'TORRENT LIST'
-    rssUrl = """https://torrentkim1.net/bbs/rss.php?k="""
-    GREETING = "SELECT MENU"
+    MENU0 = '홈'
+    MENU1 = '토렌트 검색'
+    MENU1_1 = '검색어 입력'
+    MENU1_2 = '항목을 선택하십시오.'
+    MENU2 = '토렌트 리스트'
+    rssUrl = """https://godpeople.or.kr/torrent/rss.php?site=tf&table=tmovie&k="""
+    GREETING = "메뉴를 선택해주세요"
     global scheduler
     global DOWNLOAD_PATH
 
@@ -230,7 +231,7 @@ class Torrenter(telepot.helper.ChatHandler):
             return DelugeAgent(self.sender)
         if agentType == 'transmission':
             return TransmissionAgent(self.sender)
-        raise ('invalid torrent client')
+        raise ('잘못된 토렌트 클라이언트')
 
     def open(self, initial_msg, seed):
         self.menu()
@@ -247,29 +248,21 @@ class Torrenter(telepot.helper.ChatHandler):
 
     def tor_get_keyword(self):
         self.mode = self.MENU1_1
-        self.sender.sendMessage('Enter a Keyword')
+        self.sender.sendMessage('검색할 단어를 입력해주세요')
 
     def put_menu_button(self, l):
         menulist = [self.MENU0]
         l.append(menulist)
         return l
 
-    def isDiskEnough(self):
-        stat = os.statvfs(DOWNLOAD_PATH)
-        freesize = (stat.f_bavail*stat.f_bsize)/(10**9)
-        if (freesize < 6):
-            self.sender.sendMessage('Error: The Disk size is under 6GB: {}GB'.format(freesize))
-            return False
-        return True
-
     def tor_search(self, keyword):
         self.mode = ''
-        self.sender.sendMessage('Searching torrent..')
-        self.navi = feedparser.parse(self.rssUrl + parse.quote(keyword))
+        self.sender.sendMessage('토렌트 검색중...')
+        self.navi = feedparser.parse(self.rssUrl + urllib.quote(keyword))
 
         outList = []
         if not self.navi.entries:
-            self.sender.sendMessage('Sorry, No results')
+            self.sender.sendMessage('죄송합니다. 검색결과가 없습니다.')
             self.mode = self.MENU1_1
             return
 
@@ -283,19 +276,16 @@ class Torrenter(telepot.helper.ChatHandler):
             outList.append(templist)
 
         show_keyboard = {'keyboard': self.put_menu_button(outList)}
-        self.sender.sendMessage('Choose one from below',
+        self.sender.sendMessage('아래에서 하나를 선택하십시오.',
                                 reply_markup=show_keyboard)
         self.mode = self.MENU1_2
 
     def tor_download(self, selected):
         self.mode = ''
-        if not self.isDiskEnough():
-            self.menu()
-            return
         index = int(selected.split('.')[0]) - 1
         magnet = self.navi.entries[index].link
         self.agent.download(magnet)
-        self.sender.sendMessage('Start Downloading')
+        self.sender.sendMessage('다운로드를 시작합니다.')
         self.navi.clear()
         if not scheduler.get_jobs():
             scheduler.add_job(self.agent.check_torrents, 'interval', minutes=1)
@@ -303,10 +293,10 @@ class Torrenter(telepot.helper.ChatHandler):
 
     def tor_show_list(self):
         self.mode = ''
-        self.sender.sendMessage('Let me check the torrent list..')
+        self.sender.sendMessage('토렌트 리스트를 확인하겠습니다...')
         result = self.agent.getCurrentList()
         if not result:
-            self.sender.sendMessage('The torrent list is empty')
+            self.sender.sendMessage('토렌트 목록이 비어 있습니다.')
             self.menu()
             return
         outList = self.agent.parseList(result)
@@ -327,16 +317,16 @@ class Torrenter(telepot.helper.ChatHandler):
 
     def handle_smifile(self, file_id, file_name):
         try:
-            self.sender.sendMessage('Saving subtitle file..')
+            self.sender.sendMessage('자막 파일 저장 중..')
             bot.download_file(file_id, DOWNLOAD_PATH + file_name)
         except Exception as inst:
             self.sender.sendMessage('ERORR: {0}'.format(inst))
             return
-        self.sender.sendMessage('Done')
+        self.sender.sendMessage('완료')
 
     def handle_seedfile(self, file_id, file_name):
         try:
-            self.sender.sendMessage('Saving torrent file..')
+            self.sender.sendMessage('토렌트 파일 저장 중..')
             generated_file_path = DOWNLOAD_PATH + "/" + \
                 "".join(random.sample(string.ascii_letters, 8)) + ".torrent"
             bot.download_file(file_id, generated_file_path)
@@ -348,7 +338,7 @@ class Torrenter(telepot.helper.ChatHandler):
         except Exception as inst:
             self.sender.sendMessage('ERORR: {0}'.format(inst))
             return
-        self.sender.sendMessage('Start Downloading')
+        self.sender.sendMessage('다운로드를 시작합니다.')
 
     def on_chat_message(self, msg):
         content_type, chat_type, chat_id = telepot.glance(msg)
@@ -371,10 +361,10 @@ class Torrenter(telepot.helper.ChatHandler):
                 file_id = msg['document']['file_id']
                 self.handle_seedfile(file_id, file_name)
                 return
-            self.sender.sendMessage('Invalid File')
+            self.sender.sendMessage('유효하지 않은 파일 입니다.')
             return
 
-        self.sender.sendMessage('Invalid File')
+        self.sender.sendMessage('유효하지 않은 파일 입니다.')
 
     def on_close(self, exception):
         pass
@@ -405,10 +395,11 @@ def getConfig(config):
         TRANSMISSION_ID_PW = config['transmission']['id_pw']
         TRANSMISSION_PORT = config['transmission']['port']
 
-
+reload(sys)
+sys.setdefaultencoding("utf-8")
 config = parseConfig(CONFIG_FILE)
 if not bool(config):
-    print("Err: Setting file is not found")
+    print("Err: 설정 파일을 찾을 수 없습니다.")
     exit()
 getConfig(config)
 scheduler = BackgroundScheduler()
