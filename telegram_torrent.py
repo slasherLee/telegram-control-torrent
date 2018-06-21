@@ -258,7 +258,8 @@ class Torrenter(telepot.helper.ChatHandler):
     def tor_search(self, keyword):
         self.mode = ''
         self.sender.sendMessage('토렌트 검색중...')
-        self.navi = feedparser.parse(self.rssUrl + urllib.quote(keyword))
+        #self.navi = feedparser.parse(self.rssUrl + urllib.quote(keyword))
+        self.navi = feedparser.parse(self.rssUrl + urllib.quote(keyword.encode('utf-8')))
 
         outList = []
         if not self.navi.entries:
