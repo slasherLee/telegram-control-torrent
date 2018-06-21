@@ -214,7 +214,7 @@ class Torrenter(telepot.helper.ChatHandler):
     MENU1_1 = '검색어 입력'
     MENU1_2 = '항목을 선택하십시오.'
     MENU2 = '토렌트 리스트'
-    rssUrl = """https://godpeople.or.kr/torrent/rss.php?site=tf&table=tmovie&k="""
+    rssUrl = """https://godpeople.or.kr/torrent/rss.php?site=tf&table=tmovie&key="""
     GREETING = "메뉴를 선택해주세요"
     global scheduler
     global DOWNLOAD_PATH
@@ -257,7 +257,7 @@ class Torrenter(telepot.helper.ChatHandler):
 
     def tor_search(self, keyword):
         self.mode = ''
-        self.sender.sendMessage('토렌트 검색중...')
+        self.sender.sendMessage(keyword + ' 토렌트 검색중...')
         #self.navi = feedparser.parse(self.rssUrl + urllib.quote(keyword))
         self.navi = feedparser.parse(self.rssUrl + urllib.quote(keyword.encode('utf-8')))
 
@@ -270,7 +270,10 @@ class Torrenter(telepot.helper.ChatHandler):
         for (i, entry) in enumerate(self.navi.entries):
             if i == 10:
                 break
-            title = str(i + 1) + ". " + entry.title
+            try:
+                title = str(i + 1) + ". " + entry.title
+            except:
+                continue
 
             templist = []
             templist.append(title)
