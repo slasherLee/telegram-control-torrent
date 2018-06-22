@@ -122,7 +122,7 @@ class TransmissionAgent:
             wcmd = '-w ' + DOWNLOAD_PATH + ' '
         else:
             wcmd = ''
-        os.system(self.transmissionCmd + pcmd + wcmd + '-a ' + magnet)
+        os.system(self.transmissionCmd + pcmd + wcmd + '-a ' + "\"" + magnet + "\"")
 
     def getCurrentList(self):
         l = os.popen(self.transmissionCmd + '-l').read()
@@ -268,8 +268,8 @@ class Torrenter(telepot.helper.ChatHandler):
             return
 
         for (i, entry) in enumerate(self.navi.entries):
-            if i == 10:
-                break
+            #if i == 10:
+            #    break
             try:
                 title = str(i + 1) + ". " + entry.title
             except:
