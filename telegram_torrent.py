@@ -110,7 +110,7 @@ class TransmissionAgent:
         if TRANSMISSION_ID_PW:
             cmd = cmd + '-n ' + TRANSMISSION_ID_PW + ' '
         else:
-            cmd = cmd + '-n ' + 'transmission:transmission' + ' '
+            cmd = cmd + ' '
         self.transmissionCmd = cmd
 
     def download(self, magnet):
@@ -122,7 +122,7 @@ class TransmissionAgent:
             wcmd = '-w ' + DOWNLOAD_PATH + ' '
         else:
             wcmd = ''
-        os.system(self.transmissionCmd + pcmd + wcmd + '-a ' + "\"" + magnet + "\"")
+        os.system(self.transmissionCmd + pcmd + '-a ' + "\"" + magnet + "\"")
 
     def getCurrentList(self):
         l = os.popen(self.transmissionCmd + '-l').read()
@@ -298,12 +298,12 @@ class Torrenter(telepot.helper.ChatHandler):
 
     def tor_download(self, selected):
         self.mode = ''
-
-        if not selected.isdigit():
+        numStr = selected.split('.')[0] 
+        if not numStr.isdigit():
             self.menu()
             return
 	
-        index = int(selected.split('.')[0]) - 1
+        index = int(numStr) - 1
         magnet = self.navi.entries[index].link
         self.agent.download(magnet)
         self.sender.sendMessage('다운로드를 시작합니다.')
