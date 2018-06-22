@@ -214,7 +214,7 @@ class Torrenter(telepot.helper.ChatHandler):
     MENU1_1 = '검색어 입력'
     MENU1_2 = '항목을 선택하십시오.'
     MENU2 = '토렌트 리스트'
-    rssUrl = """https://godpeople.or.kr/torrent/rss.php?site=tf&table=tmovie&key="""
+    rssUrl = """https://godpeople.or.kr/torrent/rss.php?site=tf&table=tmovie&page=1&key="""
     GREETING = "메뉴를 선택해주세요"
     global scheduler
     global DOWNLOAD_PATH
