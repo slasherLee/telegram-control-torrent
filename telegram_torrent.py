@@ -210,11 +210,14 @@ class Torrenter(telepot.helper.ChatHandler):
     YES = '<OK>'
     NO = '<NO>'
     MENU0 = '홈'
-    MENU1 = '토렌트 검색'
+    MENU1 = '토렌트 키워드 검색'
     MENU1_1 = '검색어 입력'
     MENU1_2 = '항목을 선택하십시오.'
     MENU2 = '토렌트 리스트'
-    rssUrl = """https://godpeople.or.kr/torrent/rss.php?site=tf&table=tmovie&page=1&key="""
+    MENU3 = '토렌트 최신영화 검색'
+    MENU4 = '다음 페이지'
+    MENU5 = '이전 페이지'
+    rssUrl = """https://godpeople.or.kr/torrent/rss.php?site=tf&table=tmovie"""
     GREETING = "메뉴를 선택해주세요"
     global scheduler
     global DOWNLOAD_PATH
@@ -239,7 +242,7 @@ class Torrenter(telepot.helper.ChatHandler):
     def menu(self):
         mode = ''
         show_keyboard = {'keyboard': [
-            [self.MENU1], [self.MENU2], [self.MENU0]]}
+            [self.MENU1], [self.MENU3], [self.MENU2], [self.MENU0]]}
         self.sender.sendMessage(self.GREETING, reply_markup=show_keyboard)
 
     def yes_or_no(self, comment):
@@ -251,15 +254,22 @@ class Torrenter(telepot.helper.ChatHandler):
         self.sender.sendMessage('검색할 단어를 입력해주세요')
 
     def put_menu_button(self, l):
-        menulist = [self.MENU0]
+        if self.page == 1:
+            menulist = [self.MENU4, self.MENU0]
+        else:
+            menulist = [self.MENU5, self.MENU4, self.MENU0]
         l.append(menulist)
         return l
 
-    def tor_search(self, keyword):
+    def tor_search(self, keyword, page):
         self.mode = ''
         self.sender.sendMessage(keyword + ' 토렌트 검색중...')
         #self.navi = feedparser.parse(self.rssUrl + urllib.quote(keyword))
-        self.navi = feedparser.parse(self.rssUrl + urllib.quote(keyword.encode('utf-8')))
+        keyUrl = ''
+        if keyword:
+            keyUrl = "&key=" + urllib.quote(keyword.encode('utf-8'))
+            
+        self.navi = feedparser.parse(self.rssUrl + keyUrl + "&page=" + str(page))
 
         outList = []
         if not self.navi.entries:
@@ -269,7 +279,7 @@ class Torrenter(telepot.helper.ChatHandler):
 
         for (i, entry) in enumerate(self.navi.entries):
             #if i == 10:
-            #    break
+            #    break 
             try:
                 title = str(i + 1) + ". " + entry.title
             except:
@@ -279,6 +289,8 @@ class Torrenter(telepot.helper.ChatHandler):
             templist.append(title)
             outList.append(templist)
 
+        self.page = page
+        self.keyword = keyword
         show_keyboard = {'keyboard': self.put_menu_button(outList)}
         self.sender.sendMessage('아래에서 하나를 선택하십시오.',
                                 reply_markup=show_keyboard)
@@ -286,6 +298,11 @@ class Torrenter(telepot.helper.ChatHandler):
 
     def tor_download(self, selected):
         self.mode = ''
+
+        if not selected.isdigit():
+            self.menu()
+            return
+	
         index = int(selected.split('.')[0]) - 1
         magnet = self.navi.entries[index].link
         self.agent.download(magnet)
@@ -314,8 +331,14 @@ class Torrenter(telepot.helper.ChatHandler):
             self.tor_get_keyword()
         elif command == self.MENU2:
             self.tor_show_list()
+        elif command == self.MENU3:
+            self.tor_search("", 1)
+        elif command == self.MENU4:
+            self.tor_search(self.keyword, self.page+1)
+        elif command == self.MENU5:
+            self.tor_search(self.keyword, self.page-1)
         elif self.mode == self.MENU1_1:  # Get Keyword
-            self.tor_search(command)
+            self.tor_search(command, 1)
         elif self.mode == self.MENU1_2:  # Download Torrent
             self.tor_download(command)
 
@@ -352,6 +375,7 @@ class Torrenter(telepot.helper.ChatHandler):
             return
 
         if content_type is 'text':
+            #print(msg['text'])
             self.handle_command(msg['text'])
             return
 
