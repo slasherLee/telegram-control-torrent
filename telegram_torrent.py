@@ -30,9 +30,10 @@ class DelugeAgent:
         return os.popen('deluge-console info').read()
 
     def printElement(self, e):
-        outString = '이름: ' + e['title'] + \
-            '\n' + '상태: ' + e['status'] + '\n'
-        outString += '진행: ' + e['progress'] + '\n'
+        outString = '이름: ' + e['title'] + '\n' \
+                  + '상태: ' + e['status'] + '\n' \
+                  + '진행: ' + e['progress'] + '\n' \
+                  + 'ID: ' + e['ID'] + '\n'
         outString += '\n'
         return outString
 
@@ -133,9 +134,10 @@ class TransmissionAgent:
             return l
 
     def printElement(self, e):
-        outString = '이름: ' + e['title'] + \
-            '\n' + '상태: ' + e['status'] + '\n'
-        outString += '진행: ' + e['progress'] + '\n'
+        outString = '이름: ' + e['title'] + '\n' \
+                  + '상태: ' + e['status'] + '\n' \
+                  + '진행: ' + e['progress'] + '\n' \
+                  + 'ID: ' + e['ID'] + '\n'
         outString += '\n'
         return outString
 
@@ -165,6 +167,12 @@ class TransmissionAgent:
         if ID in self.weightList:
             del self.weightList[ID]
         os.system(self.transmissionCmd + '-t ' + ID + ' -r')
+
+    def removeDeleteFromList(self, ID):
+        os.system(self.transmissionCmd + '-t ' + ID + ' --remove-and-delete')
+
+    def stopFromList(self, ID):
+        os.system(self.transmissionCmd + '-t ' + ID + ' -S')
 
     def isOld(self, ID, progress):
         """weightList = {ID:[%,w],..}"""
@@ -213,10 +221,14 @@ class Torrenter(telepot.helper.ChatHandler):
     MENU1 = '토렌트 키워드 검색'
     MENU1_1 = '검색어 입력'
     MENU1_2 = '항목을 선택하십시오.'
-    MENU2 = '토렌트 리스트'
+    MENU2 = '토렌트 리스트 보기'
     MENU3 = '토렌트 최신영화 검색'
     MENU4 = '다음 페이지'
     MENU5 = '이전 페이지'
+    MENU6 = '토렌트 멈춤'
+    MENU6_1 = '토렌트 멈춤 실행'
+    MENU7 = '토렌트 삭제'
+    MENU7_1 = '토렌트 삭제 실행'
     rssUrl = """https://godpeople.or.kr/torrent/rss.php?site=tf&table=tmovie"""
     GREETING = "메뉴를 선택해주세요"
     global scheduler
@@ -242,7 +254,7 @@ class Torrenter(telepot.helper.ChatHandler):
     def menu(self):
         mode = ''
         show_keyboard = {'keyboard': [
-            [self.MENU1], [self.MENU3], [self.MENU2], [self.MENU0]]}
+            [self.MENU1], [self.MENU3], [self.MENU2], [self.MENU6, self.MENU7], [self.MENU0]]}
         self.sender.sendMessage(self.GREETING, reply_markup=show_keyboard)
 
     def yes_or_no(self, comment):
@@ -258,6 +270,11 @@ class Torrenter(telepot.helper.ChatHandler):
             menulist = [self.MENU4, self.MENU0]
         else:
             menulist = [self.MENU5, self.MENU4, self.MENU0]
+        l.append(menulist)
+        return l
+
+    def put_home_menu_button(self, l):
+        menulist = [self.MENU0]
         l.append(menulist)
         return l
 
@@ -312,17 +329,53 @@ class Torrenter(telepot.helper.ChatHandler):
             scheduler.add_job(self.agent.check_torrents, 'interval', minutes=1)
         self.menu()
 
-    def tor_show_list(self):
+    def tor_show_list(self, action):
         self.mode = ''
         self.sender.sendMessage('토렌트 리스트를 확인하겠습니다...')
         result = self.agent.getCurrentList()
         if not result:
             self.sender.sendMessage('토렌트 목록이 비어 있습니다.')
             self.menu()
-            return
+            return 
         outList = self.agent.parseList(result)
-        for e in outList:
-            self.sender.sendMessage(self.agent.printElement(e))
+
+        if action == "":
+            for e in outList:
+            	self.sender.sendMessage(self.agent.printElement(e))
+        else:
+            printList = []
+            for e in outList:
+                content = self.agent.printElement(e)
+                tempList = []
+                tempList.append(content)
+                printList.append(tempList)
+
+            if action == "stop":
+       	        show_keyboard = {'keyboard': self.put_home_menu_button(printList)}
+                self.sender.sendMessage('멈추고자 하는 아아템을  선택하십시오.',
+                                reply_markup=show_keyboard)
+                self.mode = self.MENU6_1
+            elif action == "remove":
+       	        show_keyboard = {'keyboard': self.put_home_menu_button(printList)}
+                self.sender.sendMessage('삭제하고자 하는 아아템을  선택하십시오.',
+                                reply_markup=show_keyboard)
+                self.mode = self.MENU7_1
+
+
+    def tor_stop(self, selected):
+        self.mode = ''
+        idStr = selected.split('ID: ')[1]
+        self.agent.stopFromList(idStr)
+	 
+        self.tor_show_list("")
+
+    def tor_remove(self, selected):
+        self.mode = ''
+        idStr = selected.split('ID: ')[1]
+        self.agent.removeDeleteFromList(idStr)
+
+        self.tor_show_list("")
+
 
     def handle_command(self, command):
         if command == self.MENU0:
@@ -330,17 +383,25 @@ class Torrenter(telepot.helper.ChatHandler):
         elif command == self.MENU1:
             self.tor_get_keyword()
         elif command == self.MENU2:
-            self.tor_show_list()
+            self.tor_show_list("")
         elif command == self.MENU3:
             self.tor_search("", 1)
         elif command == self.MENU4:
             self.tor_search(self.keyword, self.page+1)
         elif command == self.MENU5:
             self.tor_search(self.keyword, self.page-1)
+        elif command == self.MENU6:
+            self.tor_show_list("stop")
+        elif command == self.MENU7:
+            self.tor_show_list("remove")
         elif self.mode == self.MENU1_1:  # Get Keyword
             self.tor_search(command, 1)
         elif self.mode == self.MENU1_2:  # Download Torrent
             self.tor_download(command)
+        elif self.mode == self.MENU6_1:  # Stop
+            self.tor_stop(command)
+        elif self.mode == self.MENU7_1:  # Remove
+            self.tor_remove(command)
 
     def handle_smifile(self, file_id, file_name):
         try:
