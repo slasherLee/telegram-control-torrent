@@ -264,12 +264,14 @@ class Torrenter(telepot.helper.ChatHandler):
     def tor_search(self, keyword, page):
         self.mode = ''
         self.sender.sendMessage(keyword + ' 토렌트 검색중...')
-        #self.navi = feedparser.parse(self.rssUrl + urllib.quote(keyword))
         keyUrl = ''
         if keyword:
             keyUrl = "&key=" + urllib.quote(keyword.encode('utf-8'))
             
-        self.navi = feedparser.parse(self.rssUrl + keyUrl + "&page=" + str(page))
+        rssFeed = urllib.urlopen(self.rssUrl + keyUrl + "&page=" + str(page));
+        data = rssFeed.read();
+        self.navi = feedparser.parse(data.replace("&", "&amp;"))
+        #self.navi = feedparser.parse(self.rssUrl + keyUrl + "&page=" + str(page))
 
         outList = []
         if not self.navi.entries:
@@ -278,8 +280,6 @@ class Torrenter(telepot.helper.ChatHandler):
             return
 
         for (i, entry) in enumerate(self.navi.entries):
-            #if i == 10:
-            #    break 
             try:
                 title = str(i + 1) + ". " + entry.title
             except:
