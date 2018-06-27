@@ -8,6 +8,9 @@ import json
 import random
 import string
 import urllib
+import base64
+import urlparse
+from bs4 import BeautifulSoup
 from os.path import expanduser
 from apscheduler.schedulers.background import BackgroundScheduler
 from telepot.delegate import per_chat_id, create_open, pave_event_space
@@ -321,6 +324,7 @@ class Torrenter(telepot.helper.ChatHandler):
             return
 	
         index = int(numStr) - 1
+        self.smi_download(index)
         magnet = self.navi.entries[index].link
         self.agent.download(magnet)
         self.sender.sendMessage('다운로드를 시작합니다.')
@@ -328,6 +332,38 @@ class Torrenter(telepot.helper.ChatHandler):
         if not scheduler.get_jobs():
             scheduler.add_job(self.agent.check_torrents, 'interval', minutes=1)
         self.menu()
+
+    def smi_download(self, index):
+        magnet = self.navi.entries[index].link
+        url_p2 = magnet.split('rss.php?')[1]
+
+        downPage = urllib.urlopen("http://www.tfreeca22.com/board.php?mode=view&" + url_p2)
+        data = downPage.read()
+        
+        html = BeautifulSoup(data, "html.parser")
+        anchors = html.find_all("a", href=True)
+        smi_text = ""
+        i = 0
+        for a in anchors:
+            if "filetender" in a['href']:
+                if "smi" in a.text:
+                    smi_index = (i / 2)
+                    smi_text = a.text
+                    break
+                i = i + 1
+
+        if smi_text:
+            pdata = urlparse.parse_qs(urlparse.urlparse(magnet).query.encode('ASCII'), True)
+            baseString = pdata['b_id'][0] + "|" + pdata['id'][0] + "|" + str(smi_index)
+            encString = base64.encodestring(baseString)
+            smi_url = urllib.urlopen("http://file.filetender.com/Execdownload.php?link=" + encString)
+            #with open(DOWNLOAD_PATH + smi_text, 'wb') as output:
+            with open("./" + smi_text, 'wb') as output:
+                output.write(smi_url.read())
+            self.sender.sendMessage('자막을 다운로드 하였습니다.')
+        else:
+            self.sender.sendMessage('별도로 첨부된 자막이 없습니다.')
+        
 
     def tor_show_list(self, action):
         self.mode = ''
