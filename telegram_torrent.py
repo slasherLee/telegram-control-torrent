@@ -185,7 +185,7 @@ class TransmissionAgent:
             else:
                 self.weightList[ID][0] = progress
                 self.weightList[ID][1] = 1
-            if self.weightList[ID][1] > 3:
+            if self.weightList[ID][1] > 24:
                 return True
         else:
             self.weightList[ID] = [progress, 1]
@@ -202,9 +202,10 @@ class TransmissionAgent:
             return
         for e in outList:
             if e['status'] == self.STATUS_SEED:
-                self.sender.sendMessage(
-                    'Download completed: {0}'.format(e['title']))
-                self.removeFromList(e['ID'])
+#                self.sender.sendMessage(
+#                    'Download completed: {0}'.format(e['title']))
+#                self.removeFromList(e['ID'])
+                 return
             elif e['status'] == self.STATUS_ERR:
                 self.sender.sendMessage(
                     'Download canceled (Error): {0}\n'.format(e['title']))
@@ -329,8 +330,8 @@ class Torrenter(telepot.helper.ChatHandler):
         self.agent.download(magnet)
         self.sender.sendMessage('다운로드를 시작합니다.')
         self.navi.clear()
-#        if not scheduler.get_jobs():
-#            scheduler.add_job(self.agent.check_torrents, 'interval', minutes=1)
+        if not scheduler.get_jobs():
+            scheduler.add_job(self.agent.check_torrents, 'interval', minutes=60)
         self.menu()
 
     def smi_download(self, index):
@@ -357,8 +358,7 @@ class Torrenter(telepot.helper.ChatHandler):
             baseString = pdata['b_id'][0] + "|" + pdata['id'][0] + "|" + str(smi_index)
             encString = base64.encodestring(baseString)
             smi_url = urllib.urlopen("http://file.filetender.com/Execdownload.php?link=" + encString)
-            with open(DOWNLOAD_PATH + smi_text, 'wb') as output:
-            #with open("./" + smi_text, 'wb') as output:
+            with open(DOWNLOAD_PATH + "/" + smi_text, 'wb') as output:
                 output.write(smi_url.read())
             self.sender.sendMessage('자막을 다운로드 하였습니다.')
         else:
